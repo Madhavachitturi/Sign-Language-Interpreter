@@ -12,6 +12,7 @@ The system uses **MediaPipe hand tracking** to extract hand landmarks and a **Ra
 
 • Recognizes **26 ASL alphabets (A–Z)**
 • **Real-time gesture detection** using webcam
+• **Available via a Premium Web Interface (Flask)**
 • **Custom dataset collection pipeline**
 • **MediaPipe hand landmark extraction**
 • **Random Forest ML model for classification**
@@ -38,7 +39,10 @@ Sign-Language-Interpreter
 ├── collect_imgs.py        # Collect gesture images using webcam
 ├── create_dataset.py      # Convert collected images to training dataset
 ├── train_classifier.py    # Train Random Forest model
-├── inference_classifier.py# Run real-time gesture detection
+├── inference_classifier.py# Run real-time gesture detection locally
+├── app.py                 # Flask web interface server
+├── templates/             # HTML templates for web UI
+├── static/                # CSS and static assets
 │
 ├── model.p                # Trained ML model
 ├── data.pickle            # Processed dataset
@@ -134,6 +138,18 @@ python inference_classifier.py
 ```
 
 The webcam will start and the system will **predict ASL letters in real-time**.
+
+---
+
+## 🌐 Step 5: Launch Web Interface
+
+Run the new Flask-based web interface:
+
+```bash
+python app.py
+```
+
+Then, open your web browser and navigate to `http://127.0.0.1:5000` to view the beautiful modern web UI with live sign language translation.
 
 ---
 
