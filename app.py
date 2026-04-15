@@ -4,6 +4,7 @@ import mediapipe as mp
 import numpy as np
 from flask import Flask, render_template, Response, jsonify
 import logging
+from threading import RLock
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -33,13 +34,50 @@ labels_dict = {
 }
 
 current_prediction = ""
+sentence_text = ""
+last_prediction = ""
+last_appended_prediction = ""
+stable_frame_count = 0
+prediction_lock = RLock()
+STABLE_FRAMES_REQUIRED = 15
+
+
+def update_sentence(predicted_character):
+    global current_prediction, sentence_text, last_prediction
+    global last_appended_prediction, stable_frame_count
+
+    with prediction_lock:
+        current_prediction = predicted_character
+        if predicted_character == last_prediction:
+            stable_frame_count += 1
+        else:
+            last_prediction = predicted_character
+            stable_frame_count = 1
+
+        if (
+            stable_frame_count >= STABLE_FRAMES_REQUIRED
+            and predicted_character != last_appended_prediction
+        ):
+            sentence_text += predicted_character
+            last_appended_prediction = predicted_character
+
+
+def reset_prediction_state():
+    global current_prediction, last_prediction, last_appended_prediction, stable_frame_count
+
+    with prediction_lock:
+        current_prediction = ""
+        last_prediction = ""
+        last_appended_prediction = ""
+        stable_frame_count = 0
 
 def gen_frames():
     global current_prediction
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         app.logger.error("Could not open webcam.")
-        current_prediction = "Camera error"
+        with prediction_lock:
+            current_prediction = "Camera error"
         return
     
     while True:
@@ -94,7 +132,7 @@ def gen_frames():
 
                         prediction = model.predict([np.asarray(data_aux)])
                         predicted_character = labels_dict[int(prediction[0])]
-                        current_prediction = predicted_character
+                        update_sentence(predicted_character)
 
                         # Draw bounding box and text
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 0), 4)
@@ -102,9 +140,9 @@ def gen_frames():
                                     cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 3, cv2.LINE_AA)
                 except Exception as e:
                     app.logger.exception("Model prediction failed: %s", e)
-                    current_prediction = ""
+                    reset_prediction_state()
         else:
-            current_prediction = ""
+            reset_prediction_state()
 
         # Encode frame as JPEG
         ret, buffer = cv2.imencode('.jpg', frame)
@@ -124,7 +162,37 @@ def video_feed():
 
 @app.route('/current_prediction')
 def get_prediction():
-    return jsonify({"character": current_prediction})
+    with prediction_lock:
+        return jsonify({
+            "character": current_prediction,
+            "sentence": sentence_text,
+            "stable_frames": stable_frame_count
+        })
+
+@app.route('/sentence/space', methods=['POST'])
+def add_space():
+    global sentence_text
+    with prediction_lock:
+        if sentence_text and not sentence_text.endswith(' '):
+            sentence_text += ' '
+        reset_prediction_state()
+        return jsonify({"sentence": sentence_text})
+
+@app.route('/sentence/backspace', methods=['POST'])
+def backspace_sentence():
+    global sentence_text
+    with prediction_lock:
+        sentence_text = sentence_text[:-1]
+        reset_prediction_state()
+        return jsonify({"sentence": sentence_text})
+
+@app.route('/sentence/clear', methods=['POST'])
+def clear_sentence():
+    global sentence_text
+    with prediction_lock:
+        sentence_text = ""
+        reset_prediction_state()
+        return jsonify({"sentence": sentence_text})
 
 if __name__ == '__main__':
     # Threaded=True is important for MJPEG streaming
