@@ -3,8 +3,10 @@ import cv2
 import mediapipe as mp
 import numpy as np
 from flask import Flask, render_template, Response, jsonify
+import logging
 
 app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # Load the model
 try:
@@ -17,7 +19,11 @@ except Exception as e:
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
-hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
+hands = mp_hands.Hands(
+    static_image_mode=True,
+    max_num_hands=1,
+    min_detection_confidence=0.3
+)
 
 labels_dict = {
     0:'A',1:'B',2:'C',3:'D',4:'E',5:'F',6:'G',7:'H',
@@ -31,6 +37,10 @@ current_prediction = ""
 def gen_frames():
     global current_prediction
     cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        app.logger.error("Could not open webcam.")
+        current_prediction = "Camera error"
+        return
     
     while True:
         data_aux = []
@@ -39,6 +49,7 @@ def gen_frames():
 
         ret, frame = cap.read()
         if not ret:
+            app.logger.warning("Could not read frame from webcam.")
             break
 
         H, W, _ = frame.shape
@@ -77,8 +88,10 @@ def gen_frames():
 
                 try:
                     if model is not None:
-                        # SVM model from pickle requires proper input shape
-                        # Note: If the random forest model was saved, the features need to match.
+                        if len(data_aux) != 42:
+                            current_prediction = ""
+                            continue
+
                         prediction = model.predict([np.asarray(data_aux)])
                         predicted_character = labels_dict[int(prediction[0])]
                         current_prediction = predicted_character
@@ -88,8 +101,8 @@ def gen_frames():
                         cv2.putText(frame, predicted_character, (x1, y1 - 10), 
                                     cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 3, cv2.LINE_AA)
                 except Exception as e:
-                    # Model prediction failed (e.g., number of features mismatch)
-                    pass
+                    app.logger.exception("Model prediction failed: %s", e)
+                    current_prediction = ""
         else:
             current_prediction = ""
 

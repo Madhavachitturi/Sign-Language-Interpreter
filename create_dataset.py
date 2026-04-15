@@ -32,6 +32,10 @@ for dir_ in os.listdir(DATA_DIR):
         y_ = []
 
         img = cv2.imread(os.path.join(DATA_DIR, dir_, img_path))
+        if img is None:
+            print('Skipping unreadable image: {}'.format(os.path.join(DATA_DIR, dir_, img_path)))
+            continue
+
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         results = hands.process(img_rgb)
