@@ -26,13 +26,14 @@
 
         <section class="glass-panel main-interface">
             <div class="video-container">
-                <img src="{{ url_for('video_feed') }}" alt="Live Camera Feed" id="videoElement">
+                <video id="videoElement" autoplay muted playsinline></video>
+                <canvas id="captureCanvas" hidden></canvas>
             </div>
             
             <div class="controls-panel">
                 <div class="status-indicator">
-                    <div class="status-dot online"></div>
-                    <span>Camera Active</span>
+                    <div class="status-dot" id="cameraStatusDot"></div>
+                    <span id="cameraStatusText">Camera starting</span>
                 </div>
                 <div class="detection-info">
                     <h3>Current Translation</h3>
@@ -58,28 +59,92 @@
     </main>
 
     <script>
-        // Use Server-Sent Events or WebSockets to get current prediction text directly?
-        // Actually, the prediction is burned into the camera frame. 
-        // We can just rely on the video stream, but adding the text below is nice.
-        // It's part of the image directly, so we just say "Ready..." or could fetch a prediction endpoint.
-        // Let's create a simple polling mechanism to get the recognized character.
-        setInterval(() => {
-            fetch('/current_prediction')
-                .then(response => response.json())
-                .then(data => {
-                    const charDisplay = document.getElementById('predictedChar');
-                    const sentenceDisplay = document.getElementById('sentenceText');
-                    if (data.character) {
-                        charDisplay.textContent = data.character;
-                        charDisplay.classList.add('pop');
-                        setTimeout(() => charDisplay.classList.remove('pop'), 200);
-                    } else {
-                        charDisplay.textContent = '-';
-                    }
-                    sentenceDisplay.textContent = data.sentence || 'Start signing...';
+        const videoElement = document.getElementById('videoElement');
+        const captureCanvas = document.getElementById('captureCanvas');
+        const captureContext = captureCanvas.getContext('2d');
+        const charDisplay = document.getElementById('predictedChar');
+        const sentenceDisplay = document.getElementById('sentenceText');
+        const cameraStatusDot = document.getElementById('cameraStatusDot');
+        const cameraStatusText = document.getElementById('cameraStatusText');
+        let isPredicting = false;
+
+        function updateCameraStatus(status, message) {
+            cameraStatusDot.classList.toggle('online', status === 'online');
+            cameraStatusDot.classList.toggle('offline', status !== 'online');
+            cameraStatusText.textContent = message || 'Camera unavailable';
+        }
+
+        function applyPrediction(data) {
+            updateCameraStatus(data.camera_status, data.camera_message);
+            if (data.character) {
+                charDisplay.textContent = data.character;
+                charDisplay.classList.add('pop');
+                setTimeout(() => charDisplay.classList.remove('pop'), 200);
+            } else {
+                charDisplay.textContent = '-';
+            }
+            sentenceDisplay.textContent = data.sentence || 'Start signing...';
+        }
+
+        function sendFrameForPrediction() {
+            if (isPredicting || videoElement.readyState < 2) {
+                return;
+            }
+
+            isPredicting = true;
+            captureCanvas.width = videoElement.videoWidth;
+            captureCanvas.height = videoElement.videoHeight;
+            captureContext.drawImage(videoElement, 0, 0, captureCanvas.width, captureCanvas.height);
+
+            captureCanvas.toBlob((blob) => {
+                if (!blob) {
+                    isPredicting = false;
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('frame', blob, 'frame.jpg');
+
+                fetch('/predict_frame', {
+                    method: 'POST',
+                    body: formData
                 })
-                .catch(error => console.error('Error fetching prediction:', error));
-        }, 300);
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            updateCameraStatus('offline', data.error);
+                            return;
+                        }
+                        applyPrediction(data);
+                    })
+                    .catch(() => updateCameraStatus('offline', 'Backend unavailable'))
+                    .finally(() => {
+                        isPredicting = false;
+                    });
+            }, 'image/jpeg', 0.78);
+        }
+
+        async function startBrowserCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    },
+                    audio: false
+                });
+                videoElement.srcObject = stream;
+                updateCameraStatus('online', 'Browser camera active');
+                setInterval(sendFrameForPrediction, 450);
+            } catch (error) {
+                updateCameraStatus('offline', 'Allow camera access in the browser');
+                charDisplay.textContent = 'Camera blocked';
+                console.error('Camera access error:', error);
+            }
+        }
+
+        startBrowserCamera();
 
         document.querySelectorAll('[data-action]').forEach((button) => {
             button.addEventListener('click', () => {
