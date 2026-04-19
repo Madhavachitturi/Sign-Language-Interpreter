@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Language Interpreter</title>
+    <style>
+        :root {
+            --bg: #f7fbff;
+            --ink: #102033;
+            --muted: #5f7188;
+            --teal: #0f766e;
+            --blue: #2563eb;
+            --coral: #f97367;
+            --green: #16a34a;
+            --line: rgba(16, 32, 51, 0.16);
+            --surface: #ffffff;
+            --soft: rgba(15, 118, 110, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            color: var(--ink);
+            background:
+                linear-gradient(145deg, rgba(37, 99, 235, 0.12), transparent 32%),
+                linear-gradient(315deg, rgba(249, 115, 103, 0.14), transparent 36%),
+                var(--bg);
+            line-height: 1.6;
+        }
+
+        a {
+            color: var(--teal);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .page {
+            width: min(1120px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 32px 0 48px;
+        }
+
+        .hero {
+            min-height: 74vh;
+            display: grid;
+            grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
+            gap: 32px;
+            align-items: center;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.76);
+            color: var(--teal);
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
+
+        h1 {
+            margin: 18px 0 14px;
+            max-width: 740px;
+            font-size: clamp(2.35rem, 6vw, 4.6rem);
+            line-height: 1;
+            letter-spacing: 0;
+        }
+
+        .lead {
+            max-width: 650px;
+            margin: 0 0 24px;
+            color: var(--muted);
+            font-size: 1.1rem;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: 0 16px;
+            border-radius: 8px;
+            border: 1px solid var(--teal);
+            background: var(--teal);
+            color: white;
+            font-weight: 700;
+        }
+
+        .button.secondary {
+            background: white;
+            color: var(--teal);
+        }
+
+        .visual {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--surface);
+            box-shadow: 0 18px 40px rgba(16, 32, 51, 0.14);
+        }
+
+        .visual img {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .caption {
+            margin: 0;
+            padding: 12px 14px;
+            color: var(--muted);
+            font-size: 0.94rem;
+        }
+
+        section {
+            padding: 34px 0;
+            border-top: 1px solid var(--line);
+        }
+
+        h2 {
+            margin: 0 0 16px;
+            font-size: clamp(1.6rem, 3vw, 2.35rem);
+            letter-spacing: 0;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .item {
+            min-height: 150px;
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.84);
+        }
+
+        .item strong {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--ink);
+            font-size: 1.04rem;
+        }
+
+        .item p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .architecture {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(120px, 1fr));
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .node {
+            display: flex;
+            min-height: 110px;
+            padding: 14px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface);
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: 700;
+            position: relative;
+        }
+
+        .node:not(:last-child)::after {
+            content: "";
+            position: absolute;
+            right: -12px;
+            top: 50%;
+            width: 12px;
+            border-top: 2px solid var(--teal);
+        }
+
+        .node span {
+            display: block;
+            color: var(--muted);
+            font-size: 0.88rem;
+            font-weight: 400;
+        }
+
+        .workflow {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .command {
+            overflow-x: auto;
+            padding: 16px;
+            border-radius: 8px;
+            background: #102033;
+            color: white;
+            font-family: Consolas, Monaco, monospace;
+            font-size: 0.94rem;
+            line-height: 1.7;
+        }
+
+        .notice {
+            padding: 16px;
+            border: 1px solid rgba(249, 115, 103, 0.42);
+            border-radius: 8px;
+            background: rgba(249, 115, 103, 0.1);
+            color: var(--ink);
+        }
+
+        footer {
+            padding-top: 28px;
+            color: var(--muted);
+            border-top: 1px solid var(--line);
+        }
+
+        @media (max-width: 860px) {
+            .hero,
+            .grid,
+            .workflow {
+                grid-template-columns: 1fr;
+            }
+
+            .architecture {
+                grid-template-columns: 1fr;
+            }
+
+            .node:not(:last-child)::after {
+                right: auto;
+                left: 50%;
+                top: auto;
+                bottom: -12px;
+                height: 12px;
+                width: 0;
+                border-top: 0;
+                border-left: 2px solid var(--teal);
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <section class="hero">
+            <div>
+                <span class="eyebrow">ASL alphabet recognition</span>
+                <h1>Sign Language Interpreter</h1>
+                <p class="lead">
+                    A Flask and machine learning project that detects hand landmarks, predicts ASL letters, and builds text from stable gesture predictions.
+                </p>
+                <div class="actions">
+                    <a class="button" href="https://github.com/Madhavachitturi/Sign-Language-Interpreter">View Repository</a>
+                    <a class="button secondary" href="#run">Run Locally</a>
+                </div>
+            </div>
+            <figure class="visual">
+                <img src="assets/asl.jpg" alt="American Sign Language alphabet reference">
+                <figcaption class="caption">American Sign Language alphabet reference used by the project.</figcaption>
+            </figure>
+        </section>
+
+        <section>
+            <h2>Project Architecture</h2>
+            <div class="architecture" aria-label="Project architecture flow">
+                <div class="node">Browser Webcam<span>getUserMedia</span></div>
+                <div class="node">Flask API<span>/predict_frame</span></div>
+                <div class="node">MediaPipe Hands<span>21 landmarks</span></div>
+                <div class="node">Random Forest<span>model.p</span></div>
+                <div class="node">Sentence UI<span>stable predictions</span></div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Core Pieces</h2>
+            <div class="grid">
+                <div class="item">
+                    <strong>Frontend</strong>
+                    <p>HTML, CSS, and JavaScript open the camera, capture frames, and display predictions.</p>
+                </div>
+                <div class="item">
+                    <strong>Backend</strong>
+                    <p>Flask receives browser frames, decodes them with OpenCV, and returns prediction JSON.</p>
+                </div>
+                <div class="item">
+                    <strong>Model</strong>
+                    <p>MediaPipe extracts normalized landmarks, then a Random Forest classifier predicts A-Z letters.</p>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Training Workflow</h2>
+            <div class="workflow">
+                <div class="item">
+                    <strong>1. Collect</strong>
+                    <p>Capture gesture images with the webcam using collect_imgs.py.</p>
+                </div>
+                <div class="item">
+                    <strong>2. Extract</strong>
+                    <p>Create landmark features and labels with create_dataset.py.</p>
+                </div>
+                <div class="item">
+                    <strong>3. Train</strong>
+                    <p>Train the classifier with train_classifier.py.</p>
+                </div>
+                <div class="item">
+                    <strong>4. Predict</strong>
+                    <p>Run the Flask app or the optional local OpenCV inference script.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="run">
+            <h2>Run Locally</h2>
+            <p class="notice">
+                GitHub Pages hosts this static project page. The live interpreter needs Python, Flask, OpenCV, MediaPipe, and webcam access from a running backend.
+            </p>
+            <pre class="command">python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python app.py</pre>
+            <p>Open <strong>http://127.0.0.1:5000/</strong> after the Flask server starts.</p>
+        </section>
+
+        <footer>
+            <p>Built with Flask, OpenCV, MediaPipe, Scikit-learn, NumPy, HTML, CSS, and JavaScript.</p>
+        </footer>
+    </main>
+</body>
+</html>
